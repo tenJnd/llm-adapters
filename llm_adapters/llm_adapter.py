@@ -72,7 +72,7 @@ class OpenAIClient(BaseLLMClient):
         - The API response as a dictionary.
         """
         try:
-            response = self.client.ChatCompletion.create(
+            response = self.client.chat.completions.create(
                 model=self.config.MODEL,
                 messages=messages,
                 functions=functions,
