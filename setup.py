@@ -31,6 +31,6 @@ setup(
         'tiktoken==0.7.0',
         'tokenizers==0.19.1',
         'tqdm==4.66.5',
-        'transformers==4.44.25'
+        'transformers==4.44.2'
     ],
 )
