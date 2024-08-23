@@ -30,8 +30,40 @@ class BaseLLMClient(ABC):
                             function_call: str = "auto") -> Dict:
         pass
 
-    def count_tokens(self, text: str) -> int:
-        return len(self.tokenizer.encode(text))
+    def count_tokens(self, messages: List[Dict[str, str]]) -> int:
+        """
+        Estimate the number of tokens used by the given messages.
+
+        Parameters:
+        - messages: List of message dicts for the conversation.
+
+        Returns:
+        - The total number of tokens used by all the messages.
+        """
+        total_tokens = 0
+
+        for message in messages:
+            # Calculate the number of tokens in the message content
+            total_tokens += len(self.tokenizer.encode(message['content']))
+
+            # Each message has some overhead for role tokens (e.g., "system", "user")
+            total_tokens += 2  # Estimate for the role tokens and separator tokens
+
+        return total_tokens
+
+    def calculate_max_tokens(self, messages):
+        # Use the count_tokens method to estimate the token usage
+        total_tokens = self.count_tokens(messages)
+
+        # Calculate how many tokens we have left for the completion
+        max_available_tokens = self.config.CONTEXT_WINDOW - total_tokens
+
+        # Cap the max_tokens to ensure the total does not exceed the context window
+        max_tokens = min(self.config.MAX_TOKENS, max_available_tokens)
+
+        if max_tokens <= 0:
+            return {"error": "The messages are too long to fit within the context window."}
+        return max_tokens
 
     @staticmethod
     def parse_json_output(response):
@@ -50,24 +82,36 @@ class OpenAIClient(BaseLLMClient):
         super().__init__(config)
         self.client = openai
 
+    def count_tokens(self, messages: List[Dict[str, str]]) -> int:
+        """
+        Estimate the number of tokens used by the given messages using OpenAI's token counting.
+
+        Parameters:
+        - messages: List of message dicts for the conversation.
+
+        Returns:
+        - The estimated number of tokens used.
+        """
+        try:
+            # Call the OpenAI API with max_tokens=1 to estimate the token usage
+            total_tokens = self.client.chat.completions.create(
+                model=self.config.MODEL,
+                messages=messages,
+                max_tokens=1  # We don't need an actual completion, just the token usage
+            )['usage']['total_tokens']
+            return total_tokens
+        except Exception as e:
+            raise RuntimeError(f"Failed to count tokens: {str(e)}")
+
     def call_agent(self, user_prompt: str, system_prompt: str) -> Dict:
         messages = [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_prompt}
         ]
 
-        # Calculate total tokens used by the messages
-        message_tokens = sum(self.count_tokens(msg["content"]) for msg in messages)
+        max_tokens = self.calculate_max_tokens(messages)
 
-        # Ensure the sum of message tokens and max_tokens does not exceed CONTEXT_WINDOW
-        max_available_tokens = self.config.CONTEXT_WINDOW - message_tokens
-
-        # Cap the max_tokens to the remaining available tokens
-        max_tokens = min(self.config.MAX_TOKENS, max_available_tokens)
-
-        if max_tokens <= 0:
-            return {"error": "The messages are too long to fit within the context window."}
-
+        # Call the OpenAI API with the adjusted max_tokens
         return self._generic_openai_call(messages, max_tokens=max_tokens)
 
     def _generic_openai_call(self, messages: List[Dict[str, str]], functions: Optional[List[Dict]] = None,
@@ -166,15 +210,17 @@ class BaseLocalClient(BaseLLMClient):
         return model, tokenizer
 
     def call_agent(self, user_prompt: str, system_prompt: str) -> Dict:
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt}
+        ]
+        max_tokens = self.calculate_max_tokens(messages)
         if self.config.MODEL_PATH.endswith(".gguf"):
             try:
                 response = self.client.create_chat_completion(
-                    messages=[
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": user_prompt}
-                    ],
+                    messages=messages,
                     temperature=self.config.TEMPERATURE,
-                    max_tokens=self.config.MAX_TOKENS,
+                    max_tokens=max_tokens,
                     top_p=self.config.TOP_P,
                     frequency_penalty=self.config.FREQUENCY_PENALTY,
                     presence_penalty=self.config.PRESENCE_PENALTY,
@@ -186,7 +232,7 @@ class BaseLocalClient(BaseLLMClient):
             input_ids = self.tokenizer.encode(system_prompt + user_prompt, return_tensors='pt')
             output = self.client.generate(
                 input_ids,
-                max_length=self.config.MAX_TOKENS,
+                max_length=max_tokens,
                 temperature=self.config.TEMPERATURE,
                 top_p=self.config.TOP_P
             )
