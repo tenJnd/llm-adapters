@@ -89,7 +89,7 @@ class OpenAIClient(BaseLLMClient):
                 payload["functions"] = functions
                 payload["function_call"] = function_call
 
-            response = self.client.ChatCompletion.create(**payload)
+            response = self.client.chat.completions.create(**payload)
             return response
 
         except Exception as e:
