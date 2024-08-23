@@ -56,12 +56,14 @@ class OpenAIClient(BaseLLMClient):
             {"role": "user", "content": user_prompt}
         ]
 
-        # Calculate total tokens in the messages
+        # Calculate total tokens used by the messages
         message_tokens = sum(self.count_tokens(msg["content"]) for msg in messages)
 
-        # Dynamically adjust max_tokens to fit within the context window
-        available_tokens = self.config.CONTEXT_WINDOW - message_tokens
-        max_tokens = min(self.config.MAX_TOKENS, available_tokens)
+        # Ensure the sum of message tokens and max_tokens does not exceed CONTEXT_WINDOW
+        max_available_tokens = self.config.CONTEXT_WINDOW - message_tokens
+
+        # Cap the max_tokens to the remaining available tokens
+        max_tokens = min(self.config.MAX_TOKENS, max_available_tokens)
 
         if max_tokens <= 0:
             return {"error": "The messages are too long to fit within the context window."}
