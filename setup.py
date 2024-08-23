@@ -11,7 +11,7 @@ def readme():
 version = os.environ.get('CI_COMMIT_TAG', f"1.0")
 
 setup(
-    name='llm-adapters',
+    name='llm_adapters',
     version=version,
     description='Simple llm adapters for opnAi and local models',
     long_description=readme(),
@@ -19,7 +19,7 @@ setup(
     author='Tomas.jnd',
     author_email='',
     packages=find_packages(exclude=('tests', 'docs')),
-    python_requires='>=3.6',
+    python_requires='>=3.8',
     install_requires=[
         'backoff==2.2.1',
         'huggingface-hub==0.24.6',
