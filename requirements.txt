@@ -1,0 +1,7 @@
+lxml
+openai
+tiktoken
+backoff
+llama-cpp-python==0.2.77
+huggingface-hub
+transformers

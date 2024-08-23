@@ -1,0 +1,150 @@
+import json
+import os
+from abc import ABC, abstractmethod
+from typing import Dict
+
+import openai
+import tiktoken
+from huggingface_hub import snapshot_download
+from llama_cpp import Llama
+from transformers import AutoModelForCausalLM, AutoTokenizer
+
+import model_config as model_config
+
+
+class ParsingError(Exception):
+    """Exception raised for errors in the parsing process."""
+
+
+class BaseLLMClient(ABC):
+    def __init__(self, config: model_config.ModelConfig):
+        self.config = config
+        self.tokenizer = tiktoken.get_encoding(self.config.TOKENIZER)
+
+    @abstractmethod
+    def call_agent(self, user_prompt: str, system_prompt: str) -> Dict:
+        pass
+
+    def count_tokens(self, text: str) -> int:
+        return len(self.tokenizer.encode(text))
+
+    @staticmethod
+    def parse_json_output(response):
+        try:
+            if isinstance(response, dict):
+                return json.loads(response['choices'][0]['message']['content'])
+            return json.loads(response.dict()['choices'][0]['message']['content'])
+        except (KeyError, TypeError) as exc:
+            raise ParsingError("Can not parse the agent response") from exc
+        except json.JSONDecodeError as exc:
+            raise ParsingError("Can not decode the agent response") from exc
+
+
+class OpenAIClient(BaseLLMClient):
+    def __init__(self, config: model_config.ModelConfig):
+        super().__init__(config)
+        self.client = openai
+
+    def call_agent(self, user_prompt: str, system_prompt: str) -> Dict:
+        try:
+            response = self.client.chat.completions.create(
+                model=self.config.MODEL,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt}
+                ],
+                temperature=self.config.TEMPERATURE,
+                max_tokens=self.config.MAX_TOKENS,
+                top_p=self.config.TOP_P,
+                frequency_penalty=self.config.FREQUENCY_PENALTY,
+                presence_penalty=self.config.PRESENCE_PENALTY,
+                stop=["```"]
+            )
+            return response
+        except Exception as e:
+            return {"error": str(e)}
+
+
+class BaseLocalClient(BaseLLMClient):
+    def __init__(self, config: model_config.ModelConfig, download_model: bool = False):
+        super().__init__(config)
+        try:
+            import torch
+            self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
+        except ModuleNotFoundError:
+            self.device = None
+
+        if not os.path.exists(config.MODEL_PATH) and download_model:
+            self.download_model(config.REPO_ID, config.FILENAME, config.MODEL_PATH)
+
+        if config.MODEL_PATH.endswith(".gguf"):
+            self.client = Llama(model_path=config.MODEL_PATH,
+                                n_ctx=config.CONTEXT_WINDOW,
+                                n_batch=config.CONTEXT_WINDOW,
+                                device=self.device)  # Ensure this is supported by Llama
+        else:
+            self.client, self.tokenizer = self.load_transformers_model(config.MODEL_PATH)
+
+    @staticmethod
+    def download_model(repo_id: str, filename: str, model_path: str):
+        if repo_id and filename:
+            print(f"Downloading model {repo_id} to {model_path}...")
+            snapshot_download(repo_id=repo_id, allow_patterns=filename, local_dir=model_path)
+            print(f"Model downloaded to {model_path}.")
+        else:
+            raise ValueError("Model path or repository ID not provided for downloading the model.")
+
+    @classmethod
+    def load_transformers_model(cls, model_path: str):
+        print(f"Loading transformers model from {model_path}...")
+        model = AutoModelForCausalLM.from_pretrained(model_path)
+        tokenizer = AutoTokenizer.from_pretrained(model_path)
+        return model, tokenizer
+
+    def call_agent(self, user_prompt: str, system_prompt: str) -> Dict:
+        if self.config.MODEL_PATH.endswith(".gguf"):
+            try:
+                response = self.client.create_chat_completion(
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_prompt}
+                    ],
+                    temperature=self.config.TEMPERATURE,
+                    max_tokens=self.config.MAX_TOKENS,
+                    top_p=self.config.TOP_P,
+                    frequency_penalty=self.config.FREQUENCY_PENALTY,
+                    presence_penalty=self.config.PRESENCE_PENALTY,
+                    stop=["```"]
+                )
+            except Exception as e:
+                response = {"error": str(e)}
+        else:
+            input_ids = self.tokenizer.encode(system_prompt + user_prompt, return_tensors='pt')
+            output = self.client.generate(
+                input_ids,
+                max_length=self.config.MAX_TOKENS,
+                temperature=self.config.TEMPERATURE,
+                top_p=self.config.TOP_P
+            )
+            response_text = self.tokenizer.decode(output[0], skip_special_tokens=True)
+            response = {"choices": [{"message": {"content": response_text}}]}
+        return response
+
+
+class LLMClientFactory:
+    @staticmethod
+    def create_llm_client(model_conf: model_config.ModelConfig) -> BaseLLMClient:
+        if model_conf.MODEL in ['llama', 'gpt4all-falcon']:
+            return BaseLocalClient(model_conf)
+        else:
+            return OpenAIClient(model_conf)
+
+
+if __name__ == '__main__':
+    user_prompt_test = "Please tell me a joke."
+    system_prompt_test = "You are a helpful assistant."
+
+    # Example usage for Llama model
+    llm_client = LLMClientFactory.create_llm_client(model_config.LlamaConfig)
+    final_response = llm_client.call_agent(user_prompt_test, system_prompt_test)
+    print(final_response)
