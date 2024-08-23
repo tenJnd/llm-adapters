@@ -72,19 +72,26 @@ class OpenAIClient(BaseLLMClient):
         - The API response as a dictionary.
         """
         try:
-            response = self.client.chat.completions.create(
-                model=self.config.MODEL,
-                messages=messages,
-                functions=functions,
-                function_call=function_call,
-                temperature=kwargs.get("temperature", self.config.TEMPERATURE),
-                max_tokens=kwargs.get("max_tokens", self.config.MAX_TOKENS),
-                top_p=kwargs.get("top_p", self.config.TOP_P),
-                frequency_penalty=kwargs.get("frequency_penalty", self.config.FREQUENCY_PENALTY),
-                presence_penalty=kwargs.get("presence_penalty", self.config.PRESENCE_PENALTY),
-                stop=kwargs.get("stop", ["```"])
-            )
+            # Build the payload for the API request
+            payload = {
+                "model": self.config.MODEL,
+                "messages": messages,
+                "temperature": kwargs.get("temperature", self.config.TEMPERATURE),
+                "max_tokens": kwargs.get("max_tokens", self.config.MAX_TOKENS),
+                "top_p": kwargs.get("top_p", self.config.TOP_P),
+                "frequency_penalty": kwargs.get("frequency_penalty", self.config.FREQUENCY_PENALTY),
+                "presence_penalty": kwargs.get("presence_penalty", self.config.PRESENCE_PENALTY),
+                "stop": kwargs.get("stop", ["```"])
+            }
+
+            # Only include functions and function_call if functions are provided
+            if functions:
+                payload["functions"] = functions
+                payload["function_call"] = function_call
+
+            response = self.client.ChatCompletion.create(**payload)
             return response
+
         except Exception as e:
             return {"error": str(e)}
 
