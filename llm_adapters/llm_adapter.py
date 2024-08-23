@@ -82,26 +82,26 @@ class OpenAIClient(BaseLLMClient):
         super().__init__(config)
         self.client = openai
 
-    def count_tokens(self, messages: List[Dict[str, str]]) -> int:
-        """
-        Estimate the number of tokens used by the given messages using OpenAI's token counting.
-
-        Parameters:
-        - messages: List of message dicts for the conversation.
-
-        Returns:
-        - The estimated number of tokens used.
-        """
-        try:
-            # Call the OpenAI API with max_tokens=1 to estimate the token usage
-            total_tokens = self.client.chat.completions.create(
-                model=self.config.MODEL,
-                messages=messages,
-                max_tokens=1  # We don't need an actual completion, just the token usage
-            )['usage']['total_tokens']
-            return total_tokens
-        except Exception as e:
-            raise RuntimeError(f"Failed to count tokens: {str(e)}")
+    # def count_tokens(self, messages: List[Dict[str, str]]) -> int:
+    #     """
+    #     Estimate the number of tokens used by the given messages using OpenAI's token counting.
+    #
+    #     Parameters:
+    #     - messages: List of message dicts for the conversation.
+    #
+    #     Returns:
+    #     - The estimated number of tokens used.
+    #     """
+    #     try:
+    #         # Call the OpenAI API with max_tokens=1 to estimate the token usage
+    #         total_tokens = self.client.chat.completions.create(
+    #             model=self.config.MODEL,
+    #             messages=messages,
+    #             max_tokens=1  # We don't need an actual completion, just the token usage
+    #         )['usage']['total_tokens']
+    #         return total_tokens
+    #     except Exception as e:
+    #         raise RuntimeError(f"Failed to count tokens: {str(e)}")
 
     def call_agent(self, user_prompt: str, system_prompt: str) -> Dict:
         messages = [
