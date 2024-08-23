@@ -9,7 +9,7 @@ from huggingface_hub import snapshot_download
 from llama_cpp import Llama
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
-import model_config as model_config
+import llm_adapters.model_config as model_config
 
 
 class ParsingError(Exception):
