@@ -55,7 +55,18 @@ class OpenAIClient(BaseLLMClient):
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_prompt}
         ]
-        return self._generic_openai_call(messages)
+
+        # Calculate total tokens in the messages
+        message_tokens = sum(self.count_tokens(msg["content"]) for msg in messages)
+
+        # Dynamically adjust max_tokens to fit within the context window
+        available_tokens = self.config.CONTEXT_WINDOW - message_tokens
+        max_tokens = min(self.config.MAX_TOKENS, available_tokens)
+
+        if max_tokens <= 0:
+            return {"error": "The messages are too long to fit within the context window."}
+
+        return self._generic_openai_call(messages, max_tokens=max_tokens)
 
     def _generic_openai_call(self, messages: List[Dict[str, str]], functions: Optional[List[Dict]] = None,
                              function_call: Optional[str] = "auto", **kwargs) -> Dict:

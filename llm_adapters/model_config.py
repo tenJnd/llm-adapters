@@ -23,8 +23,8 @@ class Gpt35Config(ModelConfig):
 
 class Gpt4Config(Gpt35Config):
     MODEL = 'gpt-4'
-    MAX_TOKENS = 5000
-    CONTEXT_WINDOW = 8000
+    MAX_TOKENS = 2000
+    CONTEXT_WINDOW = 8192
 
 
 class LlamaConfig(ModelConfig):
