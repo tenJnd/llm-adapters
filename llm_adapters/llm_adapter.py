@@ -1,5 +1,6 @@
 import json
 import os
+import traceback
 from abc import ABC, abstractmethod
 from typing import Dict, List, Optional
 
@@ -72,9 +73,9 @@ class BaseLLMClient(ABC):
                 return json.loads(response['choices'][0]['message']['content'])
             return json.loads(response.dict()['choices'][0]['message']['content'])
         except (KeyError, TypeError) as exc:
-            raise ParsingError("Cannot parse the agent response") from exc
+            raise ParsingError(f"Cannot parse the agent response: {traceback.format_exc()}") from exc
         except json.JSONDecodeError as exc:
-            raise ParsingError("Cannot decode the agent response") from exc
+            raise ParsingError(f"Cannot decode the agent response: {traceback.format_exc()}") from exc
 
 
 class OpenAIClient(BaseLLMClient):
