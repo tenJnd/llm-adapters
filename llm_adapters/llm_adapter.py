@@ -73,9 +73,11 @@ class BaseLLMClient(ABC):
                 return json.loads(response['choices'][0]['message']['content'])
             return json.loads(response.dict()['choices'][0]['message']['content'])
         except (KeyError, TypeError) as exc:
-            raise ParsingError(f"Cannot parse the agent response: {traceback.format_exc()}") from exc
+            raise ParsingError(f"Cannot parse the agent response: {traceback.format_exc()}\n"
+                               f"response: {response}") from exc
         except json.JSONDecodeError as exc:
-            raise ParsingError(f"Cannot decode the agent response: {traceback.format_exc()}") from exc
+            raise ParsingError(f"Cannot decode the agent response: {traceback.format_exc()}\n"
+                               f"response: {response}") from exc
 
 
 class OpenAIClient(BaseLLMClient):
