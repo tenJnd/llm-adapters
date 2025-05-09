@@ -27,6 +27,10 @@ class Gpt4Config(Gpt35Config):
     CONTEXT_WINDOW = 8192
 
 
+class Gpt4oConfig(ModelConfig):
+    MODEL = 'gpt-4o'
+
+
 class LlamaConfig(ModelConfig):
     MODEL = 'llama'
     MODEL_PATH = '/home/tomas/.models/Meta-Llama-3-8B-Instruct.Q4_0.gguf'
