@@ -27,6 +27,7 @@ setup(
         'lxml==5.3.0',
         'numpy==1.24.4',
         'openai==1.42.0',
+        'httpx==0.27.2',
         'requests==2.32.3',
         'tiktoken==0.7.0',
         'tokenizers==0.19.1',
