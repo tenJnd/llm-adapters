@@ -133,16 +133,22 @@ class OpenAIClient(BaseLLMClient):
         """
         try:
             # Build the payload for the API request
-            payload = {
-                "model": self.config.MODEL,
-                "messages": messages,
-                "temperature": kwargs.get("temperature", self.config.TEMPERATURE),
-                "max_tokens": kwargs.get("max_tokens", self.config.MAX_TOKENS),
-                "top_p": kwargs.get("top_p", self.config.TOP_P),
-                "frequency_penalty": kwargs.get("frequency_penalty", self.config.FREQUENCY_PENALTY),
-                "presence_penalty": kwargs.get("presence_penalty", self.config.PRESENCE_PENALTY),
-                "stop": kwargs.get("stop", ["```"])
-            }
+            if str.startswith(self.config.MODEL, 'gpt-5'):
+                payload = {
+                    "model": self.config.MODEL,
+                    "messages": messages,
+                }
+            else:
+                payload = {
+                    "model": self.config.MODEL,
+                    "messages": messages,
+                    "temperature": kwargs.get("temperature", self.config.TEMPERATURE),
+                    "max_tokens": kwargs.get("max_tokens", self.config.MAX_TOKENS),
+                    "top_p": kwargs.get("top_p", self.config.TOP_P),
+                    "frequency_penalty": kwargs.get("frequency_penalty", self.config.FREQUENCY_PENALTY),
+                    "presence_penalty": kwargs.get("presence_penalty", self.config.PRESENCE_PENALTY),
+                    "stop": kwargs.get("stop", ["```"])
+                }
 
             # Only include functions and function_call if functions are provided
             if functions:
