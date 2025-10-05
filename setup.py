@@ -25,7 +25,7 @@ setup(
         'huggingface-hub==0.24.6',
         'llama_cpp_python==0.2.77',
         'lxml==5.3.0',
-        'numpy==1.24.4',
+        'numpy>=1.26',
         'openai==1.42.0',
         'httpx==0.27.2',
         'requests==2.32.3',
